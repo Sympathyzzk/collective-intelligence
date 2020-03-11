@@ -2,11 +2,10 @@
 # -*-coding:utf-8 -*-
 # author: Sympathyzzk
 
-import random
+import numpy as np
 import copy
 import sys
 import tkinter  # //GUI模块
-import threading
 from functools import reduce
 
 # 参数
@@ -62,7 +61,7 @@ class Ant(object):
         self.open_table_city = [True for i in range(city_num)]  # 探索城市的状态，禁忌表
 
         # 随机初始出生点 0<= <=city_num - 1并设置路径以及禁忌表状态
-        city_index = random.randint(0, city_num - 1)
+        city_index = np.random.randint(0, city_num - 1)
         self.current_city = city_index
         self.path.append(city_index)
         self.open_table_city[city_index] = False
@@ -97,7 +96,7 @@ class Ant(object):
         # 轮盘选择城市
         if total_prob > 0.0:
             # 产生一个当前的概率,0.0-total_prob
-            temp_prob = random.uniform(0.0, total_prob)
+            temp_prob = np.random.uniform(0.0, total_prob)
 
             for i in range(city_num):
 
@@ -118,10 +117,10 @@ class Ant(object):
 
         # 未从概率产生，顺序选择一个未访问城市
         if (next_city == -1):
-            next_city = random.randint(0, city_num - 1)
+            next_city = np.random.randint(0, city_num - 1)
 
             while (self.open_table_city[next_city]) == False:  # if==False,说明已经遍历过了
-                next_city = random.randint(0, city_num - 1)
+                next_city = np.random.randint(0, city_num - 1)
 
         # 返回下一个城市序号
         return next_city
@@ -189,7 +188,6 @@ class TSP(object):
         self.canvas.pack(expand=tkinter.YES, fill=tkinter.BOTH)
         self.title("TSP蚁群算法(n:初始化 e:开始搜索 s:停止搜索 q:退出程序)")
         self.__r = 5
-        self.__lock = threading.RLock()  # 线程锁
         self.__bindEvents()     # 绑定按键以及对应的事件
         self.new()              # 标出点的图像和对应坐标 初始化种群和信息素（1）
 
@@ -214,9 +212,7 @@ class TSP(object):
     # 初始化
     def new(self, evt=None):
         # 停止线程
-        self.__lock.acquire()
         self.__running = False
-        self.__lock.release()
 
         self.clear()  # 清除信息
 
@@ -274,9 +270,7 @@ class TSP(object):
 
     # 退出程序
     def quite(self,evt=None):
-        self.__lock.acquire()
         self.__running = False
-        self.__lock.release()
 
         self.root.destroy()
         print(u"\n程序已退出...")
@@ -284,16 +278,12 @@ class TSP(object):
 
     # 停止搜索
     def stop(self,evt=None):
-        self.__lock.acquire()
         self.__running = False
-        self.__lock.release()
 
     # 开始搜索
     def search_path(self, evt=None):
         # 开启线程
-        self.__lock.acquire()
         self.__running = True
-        self.__lock.release()
 
         while self.__running:
             # 遍历每一只蚂蚁
