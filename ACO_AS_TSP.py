@@ -86,34 +86,15 @@ class Ant(object):
                     select_citys_prob[i] = pow(pheromone_graph[self.current_city][i], ALPHA) * pow(
                         (1.0 / distance_graph[self.current_city][i]), BETA)
                     total_prob += select_citys_prob[i]
-
                 except ZeroDivisionError as e:
                     print('Ant ID: {ID}, current city: {current}, target city: {target}'.format(ID=self.ID,
                                                                                                 current=self.current_city,
                                                                                                 target=i))
                     sys.exit(1)
-        # TODO 概率算法进行改进
-        # 轮盘选择城市
-        if total_prob > 0.0:
-            # 产生一个当前的概率,0.0-total_prob
-            temp_prob = np.random.uniform(0.0, total_prob)
 
-            for i in range(city_num):
-
-                if self.open_table_city[i]:
-                    # 轮次相减
-                    temp_prob -= select_citys_prob[i]
-
-                    if temp_prob < 0.0:
-                        next_city = i
-                        break
-
-        # if next_city == -1:
-        #
-        #     for i in range(city_num):
-        #         if self.open_table_city[i]:
-        #             next_city = i
-        #             break
+        # 使用的是AS方法，只根据概率进行选择
+        prob = np.array(select_citys_prob) / total_prob
+        next_city = np.random.choice(range(city_num), size=1, p=prob)[0]  # prob对应allow_list中的概率
 
         # 未从概率产生，顺序选择一个未访问城市
         if (next_city == -1):
@@ -188,8 +169,8 @@ class TSP(object):
         self.canvas.pack(expand=tkinter.YES, fill=tkinter.BOTH)
         self.title("TSP蚁群算法(n:初始化 e:开始搜索 s:停止搜索 q:退出程序)")
         self.__r = 5
-        self.__bindEvents()     # 绑定按键以及对应的事件
-        self.new()              # 标出点的图像和对应坐标 初始化种群和信息素（1）
+        self.__bindEvents()  # 绑定按键以及对应的事件
+        self.new()  # 标出点的图像和对应坐标 初始化种群和信息素（1）
 
         # 计算城市之间的距离
         for i in range(city_num):
@@ -269,7 +250,7 @@ class TSP(object):
             self.canvas.delete(item)
 
     # 退出程序
-    def quite(self,evt=None):
+    def quite(self, evt=None):
         self.__running = False
 
         self.root.destroy()
@@ -277,7 +258,7 @@ class TSP(object):
         sys.exit()
 
     # 停止搜索
-    def stop(self,evt=None):
+    def stop(self, evt=None):
         self.__running = False
 
     # 开始搜索
@@ -338,7 +319,4 @@ class TSP(object):
 
 
 if __name__ == '__main__':
-
     TSP(tkinter.Tk()).mainloop()
-
-
