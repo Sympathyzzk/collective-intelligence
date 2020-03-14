@@ -37,7 +37,7 @@ class Boids:
         # min dist of approach
         self.minDist = 25.0
         # max magnitude of velocities calculated by "rules"
-        self.maxRuleVel = 0.03
+        self.maxRuleVel = 1.00
         # max maginitude of final velocity
         self.maxVel = 2.0
 
@@ -88,27 +88,29 @@ class Boids:
         tempDis.sum(axis=1).reshape(self.N, 1) 能够表示与个体k之间的距离小于阈值的个数
         self.position * tempDis.sum(axis=1).reshape(self.N, 1) 表示个体k位置*与k距离小于阈值的个体数
         tempDis.dot(self.position) 表示与k距离小于阈值的个体的位置和
-        vel 等于小于阈值的个体与k的距离差
+        vel 等于小于阈值的个体与k的距离差之和
         distance threshold -> 25.0
         """
+
         tempDis = self.distMatric < 25.0
-        vel = self.position * tempDis.sum(axis=1).reshape(self.N, 1) - tempDis.dot(self.position)
-        limit(vel, self.maxRuleVel)
+        vel1 = (self.position * tempDis.sum(axis=1).reshape(self.N, 1) - tempDis.dot(self.position)) \
+               / (tempDis.sum(axis=1).reshape(self.N, 1) + 0.000001)
+        limit(vel1, self.maxRuleVel)
 
         """
-        apply rule #2 - 列队
+        apply rule #2 - 列队 速度匹配
         different distance threshold -> 50.0
         """
         tempDis = self.distMatric < 50.0
-        vel2 = tempDis.dot(self.vel)
+        vel2 = tempDis.dot(self.vel) / (tempDis.sum(axis=1).reshape(self.N, 1) + 0.000001)
         limit(vel2, self.maxRuleVel)
-        vel += vel2
+        limit(vel2, self.maxRuleVel)
 
         # apply rule #1 - 聚集
-        vel3 = tempDis.dot(self.position) - self.position
+        vel3 = tempDis.dot(self.position) / (tempDis.sum(axis=1).reshape(self.N, 1) + 0.000001) - self.position
         limit(vel3, self.maxRuleVel)
-        vel += vel3
-        return vel
+
+        return vel1 / 10 + vel2 / 20 + vel3 / 10
 
     def buttonPress(self, event):
         """event handler for matplotlib button presses"""
@@ -164,12 +166,11 @@ def main():
     # setup plot
     fig = plt.figure(facecolor='lightskyblue')
     ax = plt.axes(xlim=(0, width), ylim=(0, height), facecolor='lightskyblue')
+    ax.set_title("left click - add a boid,right click - scatter")
     ax.add_patch(patches.Rectangle((200, 200), 50, 50, linewidth=1, edgecolor='b', facecolor='b'))
 
-    pts, = ax.plot([], [], markersize=10,
-                   c='#663333', marker='o', ls='None')
-    beak, = ax.plot([], [], markersize=4,
-                    c='#cc0066', marker='o', ls='None')
+    pts, = ax.plot([], [], markersize=10, c='#663333', marker='o', ls='None')
+    beak, = ax.plot([], [], markersize=4, c='#cc0066', marker='o', ls='None')
     anim = animation.FuncAnimation(fig, tick, fargs=(pts, beak, boids), interval=50)
 
     # add a "button press" event handler
