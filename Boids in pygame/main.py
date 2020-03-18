@@ -4,7 +4,7 @@
 import numpy as np
 import pygame
 import sys
-from boids import *
+from boids_system import *
 
 
 # set the positions of obstacles
