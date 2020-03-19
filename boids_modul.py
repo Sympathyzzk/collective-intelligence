@@ -1,13 +1,12 @@
-import argparse
 import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from scipy.spatial.distance import squareform, pdist, cdist  # 计算点之间的距离
+from scipy.spatial.distance import squareform, pdist  # calculate the distance between the different agent
 from numpy.linalg import norm
 import matplotlib.patches as patches
 
-width, height = 640, 480  # 设置屏幕上模拟窗口的宽度和高度
+width, height = 640, 480  # height and width of the screen
 
 
 def limit(X, maxVal):
@@ -24,30 +23,37 @@ class Boids:
         """ initialize the Boid simulation"""
         # 初始化位置和速度
         '''
-        创建一个 numpy 数组 position，对窗口中心加上 10 个单位以内的随机偏移。
-        代码np.random.rand（2 * N）创建了一个一维数组，包含范围在[0，1]的 2N 个随机数。
-        然后 reshape()调用将它转换成二维数组的形状（N，2），它将用于保存类鸟群个体的位置。
+        np.random.rand（2 * N）create random number in [0，1]
+        self.N: the number of agents
+        self.position: the location of agents
+        self.distMatrix: distance matrix (symmetric) in which the point (i,j) save 
+                         the distance between agent i and agent j
+        self.angle: angle,it is a number for a single agent
+        self.orientation: relative orientation for different angles in cartesian coordinate system
+        self.speed: the number of velocities
+        self.velocity: the number of velocities in cartesian coordinate system
+        self.target: the right ahead of agents
         '''
-        self.position = [width / 2.0, height / 2.0] + 10 * np.random.rand(2 * N).reshape(N, 2)
+        self.N = N
+        self.position = [width / 2.0, height / 2.0] + 10 * np.random.rand(2 * self.N).reshape(self.N, 2)
+        self.distMatrix = squareform(pdist(self.position))
         # normalized random velocities
-        angles = 2 * math.pi * np.random.rand(N)
-        self.vel = np.array(list(zip(np.sin(angles), np.cos(angles))))
-        self.N = N  # 生成一个数组，包含 N 个随机角度，范围在[0, 2pi]，
+        self.angle = 2 * math.pi * np.random.rand(self.N)
+        self.orientation = np.array(list(zip(np.sin(self.angle), np.cos(self.angle))))
+        self.speed = np.array(np.ones([self.N, 1]))
+        self.velocity = self.orientation * self.speed
+        self.target = self.position + 50.0 * self.orientation
 
-        # min dist of approach
-        self.minDist = 25.0
         # max magnitude of velocities calculated by "rules"
-        self.maxRuleVel = 0.03
+        self.maxRuleVel = 2.0
         # max maginitude of final velocity
-        self.maxVel = 2.0
+        self.maxVel = 4.0
 
     def tick(self, frameNum, pts, beak):
         """Update the simulation by one time step."""
-        # 用 squareform()和 pdist()方法来计算一组点之间两两的距离
-        self.distMatric = squareform(pdist(self.position))
 
         # apply rules:
-        self.vel += self.applyRules()
+        self.vel += self.applyRules
         limit(self.vel, self.maxVel)
         self.position += self.vel
         self.applyBC()
@@ -60,13 +66,9 @@ class Boids:
                       vec.reshape(2 * self.N)[1::2])
 
     def applyBC(self):
-
         """apply boundary conditions"""
-
         deltaR = 2.0  # 该行中的deltaR提供了一个微小的缓冲区，它允许类鸟群个体开始从相反方向回来之前移出小块之外一点，从而产生更好的视觉效果
-
         for index, coord in enumerate(self.position):
-
             if coord[0] > width + deltaR:
                 coord[0] = - deltaR
 
@@ -84,30 +86,35 @@ class Boids:
 
     def applyRules(self):
         """
-        apply rule #1 - Separation
         tempDis.sum(axis=1).reshape(self.N, 1) 能够表示与个体k之间的距离小于阈值的个数
         self.position * tempDis.sum(axis=1).reshape(self.N, 1) 表示个体k位置*与k距离小于阈值的个体数
         tempDis.dot(self.position) 表示与k距离小于阈值的个体的位置和
         vel 等于小于阈值的个体与k的距离差
-        distance threshold -> 25.0
         """
-        tempDis = self.distMatric < 25.0
-        vel = self.position * tempDis.sum(axis=1).reshape(self.N, 1) - tempDis.dot(self.position)
+        observeDis = self.distMatrix < 25.0  # observe distance
+        observeNum = observeDis.sum(axis=1).reshape(self.N, 1)
+        detectDis = self.distMatrix < 50.0  # detect distance
+        detectNum = detectDis.sum(axis=1).reshape(self.N, 1)
+
+        # apply rule #1 - 保持距离
+        averagePos = (observeDis.dot(self.position) - self.position * observeNum) / (observeNum + 0.000001)
+        averageDis = np.sqrt(averagePos[:, 0] ** 2 + averagePos[:, 1] ** 2)
+        for i, dis in enumerate(averageDis):
+            if dis > 20:
+                vel1 = (averagePos - self.position) / 100
+            elif dis < 20:
+                vel1 = -(averagePos - self.position) / 100
+
+        # apply rule #2 - 速度匹配
+        averageVel = observeDis.dot(self.vel) / (observeNum + 0.000001)
+        vel2 = (averageVel - self.vel) / 30
+
+        # apply rule #3 - 聚集
+        center = detectDis.dot(self.position) / (detectNum + 0.000001)
+        vel3 = (center - self.position) / 100
+
+        vel = vel1 + vel2 + vel3
         limit(vel, self.maxRuleVel)
-
-        """
-        apply rule #2 - 列队
-        different distance threshold -> 50.0
-        """
-        tempDis = self.distMatric < 50.0
-        vel2 = tempDis.dot(self.vel)
-        limit(vel2, self.maxRuleVel)
-        vel += vel2
-
-        # apply rule #1 - 聚集
-        vel3 = tempDis.dot(self.position) - self.position
-        limit(vel3, self.maxRuleVel)
-        vel += vel3
         return vel
 
     def buttonPress(self, event):
@@ -156,20 +163,18 @@ def main():
     #     N = int(args.N)
 
     # number of boids
-
     N = 50
+
     # create boids
     boids = Boids(N)
-
     # setup plot
     fig = plt.figure(facecolor='lightskyblue')
     ax = plt.axes(xlim=(0, width), ylim=(0, height), facecolor='lightskyblue')
+    ax.set_title("left click - add a boid,right click - scatter")
     ax.add_patch(patches.Rectangle((200, 200), 50, 50, linewidth=1, edgecolor='b', facecolor='b'))
 
-    pts, = ax.plot([], [], markersize=10,
-                   c='#663333', marker='o', ls='None')
-    beak, = ax.plot([], [], markersize=4,
-                    c='#cc0066', marker='o', ls='None')
+    pts, = ax.plot([], [], markersize=10, c='#663333', marker='o', ls='None')
+    beak, = ax.plot([], [], markersize=4, c='#cc0066', marker='o', ls='None')
     anim = animation.FuncAnimation(fig, tick, fargs=(pts, beak, boids), interval=50)
 
     # add a "button press" event handler
