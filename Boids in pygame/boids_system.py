@@ -27,9 +27,10 @@ class boids_system(object):
 
         """
         set the initial states of birds:
-            positions,angles,max speed,velocities,individual colors and it's display colors
+            positions,targets,angles,max speed,velocities,individual colors and it's display colors
         """
         self.positions = np.random.uniform(10, screen_size - 10, (self.num_boids, 2))
+        self.targets = np.random.uniform(10, screen_size - 10, (self.num_boids, 2))
         self.angles = np.random.uniform(0, 2 * np.pi, self.num_boids)
         self.max_speed = 2.0
         # get the random speed and it's component number in x and y axises
@@ -45,7 +46,7 @@ class boids_system(object):
         self.cohesion_weight = 1.0
         self.alignment_weight = 1.0
         self.separation_weight = 1.0
-        self.obstacles_repulsion_weight = 5.0
+        self.obstacles_repulsion_weight = 3.0
         self.attractors_cohesion_weight = 0.4
         self.attractors_repulsion_weight = 0.3
 
@@ -63,21 +64,25 @@ class boids_system(object):
         # update the positions,angles
         self.positions += self.velocities
         self.angles = np.arctan2(self.velocities[:, 1], self.velocities[:, 0])
+        self.targets = self.positions + 400 * self.velocities / np.linalg.norm(self.velocities)
 
         # get the location reactivities(remove itself) of birds
         tree = kd_tree(self.positions)
+        tree_t = kd_tree(self.targets)
         self.close_pairs = tree.query_ball_tree(tree, r=self.neighborhood_size)
         for i in range(self.num_boids):
             self.close_pairs[i].remove(i)
 
         # get the location reactivities of obstacles
+        # random numbers
         if self.num_obstacles > 0:
-            self.tree_obstacles = kd_tree(self.obstacles)
-            self.close_pairs_obstacles = tree.query_ball_tree(self.tree_obstacles, r=20)
+            self.tree_obstacles = kd_tree(self.obstacles[:self.num_obstacles])
+            self.close_pairs_obstacles = tree_t.query_ball_tree(self.tree_obstacles, r=20)
 
         # get the location reactivities of attractors
+        # random numbers
         if self.num_attractors > 0:
-            self.tree_attractors = kd_tree(self.attractors)
+            self.tree_attractors = kd_tree(self.attractors[:self.num_attractors])
             self.close_pairs_attractors = tree.query_ball_tree(self.tree_attractors, r=100)
             self.closest_pairs_attractors = tree.query_ball_tree(self.tree_attractors, r=50)
 
@@ -144,11 +149,10 @@ class boids_system(object):
         return separation
 
     def update_colors(self):
-        num_boids = self.num_boids
-        display_colors = np.copy(self.colors[:num_boids])
+        display_colors = np.copy(self.colors)
 
         for k in range(5):
-            for i in range(num_boids):
+            for i in range(self.num_boids):
                 num_neighbors = len(self.close_pairs[i])
 
                 if num_neighbors > 0:
