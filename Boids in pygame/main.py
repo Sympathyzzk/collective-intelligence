@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+# -*-coding:utf-8 -*-
+# author: Sympathyzzk  time:2020/3/18.
 
 import numpy as np
 import pygame
